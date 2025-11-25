@@ -59,10 +59,14 @@ func (s *RateFetcherService) ConvertCurrency(from, to string, amount float64, da
 	}
 
 	if err1 != nil {
+		fmt.Printf("Error in rate-fetcher convert currency %v", err1)
 		return 0, err1
 	}
 
-	result := s.converter.Convert(from, to, amount, rates)
+	result, err := s.converter.Convert(from, to, amount, rates)
+	if err != nil {
+		return 0, fmt.Errorf("conversion error: %v", err)
+	}
 
 	return result, nil
 }
@@ -72,6 +76,7 @@ func (s *RateFetcherService) validate(from, to string, amount float64, date *tim
 		return fmt.Errorf("unsupported currency %s", from)
 	}
 	if !SupportedCurrencies[to] {
+		fmt.Printf("Validation failed: unsupported currency %s\n", to)
 		return fmt.Errorf("unsupported currency %s", to)
 	}
 
@@ -116,7 +121,7 @@ func (s *RateFetcherService) getHistoricalRates(date time.Time) (map[string]floa
 	}
 
 	s.cache.SetHistoricalRates(date, ratescache)
-	return rates, nil
+	return ratescache, nil
 }
 
 func (s *RateFetcherService) StartHourlyRefresh() {
@@ -125,16 +130,17 @@ func (s *RateFetcherService) StartHourlyRefresh() {
 	go func() {
 		for range ticker.C {
 			if err := s.loadLatestRates(); err != nil {
-				fmt.Printf("Error refreshing rates: %v\n", err)
+				fmt.Printf("Error refreshing rates: %v/n", err)
 			} else {
 				fmt.Println("Latest rates refreshed")
 			}
 			s.cache.ClearOldHistoricalData()
+			fmt.Printf("Stats: %v/n", s.GetCacheStats())
 		}
 	}()
 
 	fmt.Println("Hourly refresh started")
-	fmt.Printf("Stats: %v/n", s.GetCacheStats())
+
 }
 
 func (s *RateFetcherService) GetCacheStats() map[string]interface{} {

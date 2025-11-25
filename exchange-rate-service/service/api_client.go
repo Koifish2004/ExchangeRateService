@@ -5,21 +5,20 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 	"time"
 )
 
 type LatestAPIResponse struct {
-	Result          string             `json:"result"`
-	ConversionRates map[string]float64 `json:"conversion_rates"`
+	Success bool               `json:"success"`
+	Quotes  map[string]float64 `json:"quotes"`
 }
 
 type HistoricalAPIResponse struct {
-	Result          string             `json:"result"`
-	Year            int                `json:"year"`
-	Month           int                `json:"month"`
-	Day             int                `json:"day"`
-	ConversionRates map[string]float64 `json:"conversion_rates"`
+	Success bool               `json:"success"`
+	Quotes  map[string]float64 `json:"quotes"`
 }
 
 type APIClient struct {
@@ -35,14 +34,18 @@ func NewClient() *APIClient {
 	}
 	return &APIClient{
 		apiKey:  apiKey,
-		baseURL: "https://v6.exchangerate-api.com/v6",
+		baseURL: "https://api.exchangerate.host",
 	}
 }
 
 func (c *APIClient) FetchLatestRates() (map[string]float64, error) {
 
-	url := fmt.Sprintf("%s/%s/latest/USD", c.baseURL, c.apiKey)
-	resp, err := http.Get(url)
+	u, _ := url.Parse(c.baseURL + "/live")
+	q := u.Query()
+	q.Set("access_key", c.apiKey)
+	u.RawQuery = q.Encode()
+
+	resp, err := http.Get(u.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch latest rate: %w", err)
 	}
@@ -61,21 +64,31 @@ func (c *APIClient) FetchLatestRates() (map[string]float64, error) {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
-	if result.Result != "success" {
+	if !result.Success {
 		return nil, fmt.Errorf("API returned error")
 	}
+	//can we only add the 5 currencies we are supporting?
 
-	return result.ConversionRates, nil
+	normalized := make(map[string]float64)
+	normalized["USD"] = 1.0
+	for pair, rate := range result.Quotes {
+		if strings.HasPrefix(pair, "USD") {
+			normalized[pair[3:]] = rate
+		}
+	}
+
+	return normalized, nil
 }
 
 func (c *APIClient) FetchHistoricalRates(date time.Time) (map[string]float64, error) {
-	year := date.Year()
-	month := date.Month()
-	day := date.Day()
+	u, _ := url.Parse(c.baseURL + "/historical")
+	q := u.Query()
+	q.Set("access_key", c.apiKey)
+	q.Set("date", date.Format("2006-01-02"))
+	u.RawQuery = q.Encode()
 
-	url := fmt.Sprintf("%s/%s/history/USD/%d/%d/%d", c.baseURL, c.apiKey, year, month, day)
+	resp, err := http.Get(u.String())
 
-	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch historical data %w", err)
 	}
@@ -96,9 +109,17 @@ func (c *APIClient) FetchHistoricalRates(date time.Time) (map[string]float64, er
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
-	if result.Result != "success" {
+	if !result.Success {
 		return nil, fmt.Errorf("API returned error")
 	}
+	//can we only add the 5 currencies we are supporting?
+	normalized := make(map[string]float64)
+	normalized["USD"] = 1.0
+	for pair, rate := range result.Quotes {
+		if strings.HasPrefix(pair, "USD") {
+			normalized[pair[3:]] = rate
+		}
+	}
 
-	return result.ConversionRates, nil
+	return normalized, nil
 }
