@@ -29,7 +29,12 @@ func (c *Cache) GetLatestRates() (map[string]float64, bool) {
 		return nil, false
 	}
 
-	return c.latestRates, true
+	rates := make(map[string]float64)
+	for i, j := range c.latestRates {
+		rates[i] = j
+	}
+
+	return rates, true
 
 }
 
@@ -58,7 +63,12 @@ func (c *Cache) GetHistoricalRates(date time.Time) (map[string]float64, bool) {
 		return nil, false
 	}
 
-	return rates, true //check if latestrates can be changes externally
+	ratesCopy := make(map[string]float64)
+	for k, v := range rates {
+		ratesCopy[k] = v
+	}
+
+	return ratesCopy, true
 
 }
 
