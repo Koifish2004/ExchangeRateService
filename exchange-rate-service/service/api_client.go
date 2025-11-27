@@ -13,11 +13,13 @@ import (
 
 type LatestAPIResponse struct {
 	Success bool               `json:"success"`
+	ErrorD  map[string]string  `json:"error"`
 	Quotes  map[string]float64 `json:"quotes"`
 }
 
 type HistoricalAPIResponse struct {
 	Success bool               `json:"success"`
+	ErrorD  map[string]string  `json:"error"`
 	Quotes  map[string]float64 `json:"quotes"`
 }
 
@@ -52,7 +54,7 @@ func (c *APIClient) FetchLatestRates() (map[string]float64, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status code: %d", resp.StatusCode)
+		return nil, fmt.Errorf("API returned status code: %v", resp.Status)
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -65,7 +67,7 @@ func (c *APIClient) FetchLatestRates() (map[string]float64, error) {
 	}
 
 	if !result.Success {
-		return nil, fmt.Errorf("API returned error")
+		return nil, fmt.Errorf("API returned error %v", result.ErrorD["info"])
 	}
 	//can we only add the 5 currencies we are supporting?
 
@@ -96,7 +98,7 @@ func (c *APIClient) FetchHistoricalRates(date time.Time) (map[string]float64, er
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status code: %d", resp.StatusCode)
+		return nil, fmt.Errorf("API returned status code: %v", resp.Status)
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -110,7 +112,7 @@ func (c *APIClient) FetchHistoricalRates(date time.Time) (map[string]float64, er
 	}
 
 	if !result.Success {
-		return nil, fmt.Errorf("API returned error")
+		return nil, fmt.Errorf("API returned error %v", result.ErrorD["info"])
 	}
 	//can we only add the 5 currencies we are supporting?
 	normalized := make(map[string]float64)
