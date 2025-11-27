@@ -1,0 +1,13 @@
+
+
+.git
+.gitignore
+*.md
+README.md
+*_test.go
+.env
+.vscode
+.idea
+*.swp
+*.exe
+exchange-rate-service
