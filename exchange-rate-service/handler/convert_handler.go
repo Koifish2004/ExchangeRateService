@@ -75,14 +75,8 @@ func (h *ConvertHandler) HandleConvert(c *gin.Context) {
 	}
 
 	response := gin.H{
-		"from":   from,
-		"to":     to,
-		"amount": amount,
-		"result": result,
-	}
 
-	if dateStr != "" {
-		response["date"] = dateStr
+		"amount": result,
 	}
 
 	c.JSON(http.StatusOK, response)
