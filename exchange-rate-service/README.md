@@ -252,6 +252,3 @@ exchange-rate-service/
 ├── go.mod                    # Go module definition
 └── README.md                 # This file
 ```
-
-## Troubleshooting
-1. Make sure that the .env file is located within the /exchange-rate-service
