@@ -2,13 +2,14 @@ package service
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 	"time"
+
+	appErrors "github.com/yourusername/exchange-rate-service/errors"
 )
 
 type LatestAPIResponse struct {
@@ -49,25 +50,29 @@ func (c *APIClient) FetchLatestRates() (map[string]float64, error) {
 
 	resp, err := http.Get(u.String())
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch latest rate: %w", err)
+		return nil, appErrors.APIFetchError(err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status code: %v", resp.Status)
+		return nil, appErrors.APIBadStatusError(resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
+		return nil, appErrors.APIResponseError(err)
 	}
 	var result LatestAPIResponse
 	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, appErrors.APIResponseError(err)
 	}
 
 	if !result.Success {
-		return nil, fmt.Errorf("API returned error %v", result.ErrorD["info"])
+		errorMsg := "unknown error"
+		if info, ok := result.ErrorD["info"]; ok {
+			errorMsg = info
+		}
+		return nil, appErrors.NewAPIError(errorMsg, nil)
 	}
 	//can we only add the 5 currencies we are supporting?
 
@@ -92,29 +97,33 @@ func (c *APIClient) FetchHistoricalRates(date time.Time) (map[string]float64, er
 	resp, err := http.Get(u.String())
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch historical data %w", err)
+		return nil, appErrors.APIFetchError(err)
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status code: %v", resp.Status)
+		return nil, appErrors.APIBadStatusError(resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
+		return nil, appErrors.APIResponseError(err)
 	}
 
 	var result HistoricalAPIResponse
 	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+		return nil, appErrors.APIResponseError(err)
 	}
 
 	if !result.Success {
-		return nil, fmt.Errorf("API returned error %v", result.ErrorD["info"])
+		errorMsg := "unknown error"
+		if info, ok := result.ErrorD["info"]; ok {
+			errorMsg = info
+		}
+		return nil, appErrors.NewAPIError(errorMsg, nil)
 	}
-	//can we only add the 5 currencies we are supporting?
+
 	normalized := make(map[string]float64)
 	normalized["USD"] = 1.0
 	for pair, rate := range result.Quotes {

@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"time"
 
+	appErrors "github.com/yourusername/exchange-rate-service/errors"
+
 	"github.com/gin-gonic/gin"
 	"github.com/yourusername/exchange-rate-service/service"
 )
@@ -27,40 +29,31 @@ func (h *ConvertHandler) HandleConvert(c *gin.Context) {
 	dateStr := c.Query("date")
 
 	if from == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "missing ~from~ currency",
-		})
+		h.respondWithError(c, appErrors.MissingParameterError("from"))
 		return
 	}
 
 	if to == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "missing ~to~ currency",
-		})
+		h.respondWithError(c, appErrors.MissingParameterError("to"))
 		return
 	}
 
 	if amountStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "missing ~amount~",
-		})
+		h.respondWithError(c, appErrors.MissingParameterError("amount"))
 		return
 	}
 
 	amount, err := strconv.ParseFloat(amountStr, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid amount format, should be a number",
-		})
+		h.respondWithError(c, appErrors.InvalidAmountError())
+		return
 	}
 
 	var date *time.Time
 	if dateStr != "" {
 		parsedDate, err := time.Parse("2006-01-02", dateStr)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "invalid date format, use YYYY-MM-DD",
-			})
+			h.respondWithError(c, appErrors.InvalidDateFormatError())
 			return
 		}
 		date = &parsedDate
@@ -68,9 +61,7 @@ func (h *ConvertHandler) HandleConvert(c *gin.Context) {
 
 	result, err := h.rateFetcher.ConvertCurrency(from, to, amount, date)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		h.respondWithError(c, err)
 		return
 	}
 
@@ -80,5 +71,23 @@ func (h *ConvertHandler) HandleConvert(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+
+}
+
+func (h *ConvertHandler) respondWithError(c *gin.Context, err error) {
+
+	customErr, ok := err.(*appErrors.CustomError)
+
+	if ok {
+		c.JSON(customErr.GetHTTPStatus(), gin.H{
+			"error":        customErr.Code,
+			"errorMessage": customErr.Message,
+		})
+
+		return
+	}
+	c.JSON(http.StatusInternalServerError, gin.H{
+		"error": "internal server error",
+	})
 
 }

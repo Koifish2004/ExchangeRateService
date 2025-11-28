@@ -70,7 +70,14 @@ func newCustomError(code ErrorCode, category ErrorCategory, message string, err 
 	}
 }
 
-//validation errors
+func NewAPIError(message string, err error) *CustomError {
+	return newCustomError(
+		ErrAPIBadResponse,
+		CategoryAPI,
+		message,
+		err,
+	)
+}
 
 func MissingParameterError(param string) *CustomError {
 	return newCustomError(

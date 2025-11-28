@@ -3,6 +3,8 @@ package service
 import (
 	"fmt"
 	"time"
+
+	appErrors "github.com/yourusername/exchange-rate-service/errors"
 )
 
 var SupportedCurrencies = map[string]bool{
@@ -73,24 +75,23 @@ func (s *RateFetcherService) ConvertCurrency(from, to string, amount float64, da
 
 func (s *RateFetcherService) validate(from, to string, amount float64, date *time.Time) error {
 	if !SupportedCurrencies[from] {
-		return fmt.Errorf("unsupported currency %s", from)
+		return appErrors.UnsupportedCurrencyError(from)
 	}
 	if !SupportedCurrencies[to] {
-		fmt.Printf("Validation failed: unsupported currency %s\n", to)
-		return fmt.Errorf("unsupported currency %s", to)
+		return appErrors.UnsupportedCurrencyError(to)
 	}
 
 	if amount <= 0 {
-		return fmt.Errorf("amount cannot be 0 or negative")
+		return appErrors.InvalidAmountError()
 	}
 
 	if date != nil {
 		if date.After(time.Now()) {
-			return fmt.Errorf("date cannot be future")
+			return appErrors.FutureDateError()
 		}
 
 		if date.Before(time.Now().AddDate(0, 0, -90)) {
-			return fmt.Errorf("max lookback is 90 days, date too old")
+			return appErrors.DateTooOldError()
 		}
 	}
 

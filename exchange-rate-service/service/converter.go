@@ -1,6 +1,8 @@
 package service
 
-import "fmt"
+import (
+	appErrors "github.com/yourusername/exchange-rate-service/errors"
+)
 
 type Converter struct {
 }
@@ -13,12 +15,20 @@ func (c *Converter) Convert(from, to string, amount float64, rates map[string]fl
 	fromRate, fromExists := rates[from]
 	toRate, toExists := rates[to]
 
-	if !fromExists || !toExists {
-		return 0, fmt.Errorf("missing exchange rate for currency: %s or %s", from, to)
+	if !fromExists {
+		return 0, appErrors.MissingRateError(from)
 	}
 
-	if fromRate == 0 || toRate == 0 {
-		return 0, fmt.Errorf("invalid exchange rate for currency: %s or %s", from, to)
+	if !toExists {
+		return 0, appErrors.MissingRateError(to)
+	}
+
+	if fromRate == 0 {
+		return 0, appErrors.InvalidRateError(from)
+	}
+
+	if toRate == 0 {
+		return 0, appErrors.InvalidRateError(to)
 	}
 
 	amountInUSD := amount / fromRate
