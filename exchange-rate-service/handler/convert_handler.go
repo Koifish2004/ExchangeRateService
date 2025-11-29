@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	appErrors "github.com/yourusername/exchange-rate-service/errors"
@@ -43,12 +42,6 @@ func (h *ConvertHandler) HandleConvert(c *gin.Context) {
 		return
 	}
 
-	amount, err := strconv.ParseFloat(amountStr, 64)
-	if err != nil {
-		h.respondWithError(c, appErrors.InvalidAmountError())
-		return
-	}
-
 	var date *time.Time
 	if dateStr != "" {
 		parsedDate, err := time.Parse("2006-01-02", dateStr)
@@ -59,7 +52,7 @@ func (h *ConvertHandler) HandleConvert(c *gin.Context) {
 		date = &parsedDate
 	}
 
-	result, err := h.rateFetcher.ConvertCurrency(from, to, amount, date)
+	result, err := h.rateFetcher.ConvertCurrency(from, to, amountStr, date)
 	if err != nil {
 		h.respondWithError(c, err)
 		return
@@ -87,7 +80,8 @@ func (h *ConvertHandler) respondWithError(c *gin.Context, err error) {
 		return
 	}
 	c.JSON(http.StatusInternalServerError, gin.H{
-		"error": "internal server error",
+		"error":        http.StatusInternalServerError,
+		"errorMessage": "An unexpected error occured",
 	})
 
 }

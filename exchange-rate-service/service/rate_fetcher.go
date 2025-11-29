@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/shopspring/decimal"
 	appErrors "github.com/yourusername/exchange-rate-service/errors"
 )
 
@@ -13,6 +14,7 @@ var SupportedCurrencies = map[string]bool{
 	"EUR": true,
 	"JPY": true,
 	"GBP": true,
+	"BTC": true,
 }
 
 type RateFetcherService struct {
@@ -45,13 +47,14 @@ func (s *RateFetcherService) loadLatestRates() error {
 
 }
 
-func (s *RateFetcherService) ConvertCurrency(from, to string, amount float64, date *time.Time) (float64, error) {
+func (s *RateFetcherService) ConvertCurrency(from, to string, amount string, date *time.Time) (string, error) {
 	err := s.validate(from, to, amount, date)
 	if err != nil {
-		return 0, err
+		return "", err
 	}
+	amountDecimal, _ := decimal.NewFromString(amount)
 
-	var rates map[string]float64
+	var rates map[string]decimal.Decimal
 	var err1 error
 
 	if date == nil {
@@ -62,18 +65,18 @@ func (s *RateFetcherService) ConvertCurrency(from, to string, amount float64, da
 
 	if err1 != nil {
 		fmt.Printf("Error in rate-fetcher convert currency %v", err1)
-		return 0, err1
+		return "", err1
 	}
 
-	result, err := s.converter.Convert(from, to, amount, rates)
+	result, err := s.converter.Convert(from, to, amountDecimal, rates)
 	if err != nil {
-		return 0, fmt.Errorf("conversion error: %v", err)
+		return "", fmt.Errorf("conversion error: %v", err)
 	}
 
 	return result, nil
 }
 
-func (s *RateFetcherService) validate(from, to string, amount float64, date *time.Time) error {
+func (s *RateFetcherService) validate(from, to string, amountStr string, date *time.Time) error {
 	if !SupportedCurrencies[from] {
 		return appErrors.UnsupportedCurrencyError(from)
 	}
@@ -81,7 +84,11 @@ func (s *RateFetcherService) validate(from, to string, amount float64, date *tim
 		return appErrors.UnsupportedCurrencyError(to)
 	}
 
-	if amount <= 0 {
+	amount, err := decimal.NewFromString(amountStr)
+	if err != nil {
+		return appErrors.InvalidAmountError()
+	}
+	if amount.LessThanOrEqual(decimal.Zero) {
 		return appErrors.InvalidAmountError()
 	}
 
@@ -98,7 +105,7 @@ func (s *RateFetcherService) validate(from, to string, amount float64, date *tim
 	return nil
 }
 
-func (s *RateFetcherService) getLatestRates() (map[string]float64, error) {
+func (s *RateFetcherService) getLatestRates() (map[string]decimal.Decimal, error) {
 
 	rates, found := s.cache.GetLatestRates()
 	if found {
@@ -108,7 +115,7 @@ func (s *RateFetcherService) getLatestRates() (map[string]float64, error) {
 	return s.apiClient.FetchLatestRates()
 }
 
-func (s *RateFetcherService) getHistoricalRates(date time.Time) (map[string]float64, error) {
+func (s *RateFetcherService) getHistoricalRates(date time.Time) (map[string]decimal.Decimal, error) {
 	rates, found := s.cache.GetHistoricalRates(date)
 
 	if found {

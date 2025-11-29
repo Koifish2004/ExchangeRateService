@@ -37,7 +37,11 @@ type CustomError struct {
 }
 
 func (e *CustomError) Error() string {
-	return e.Err.Error()
+	if e.Err != nil {
+		return fmt.Sprintf("%s: %v", e.Message, e.Err)
+	}
+
+	return e.Message
 }
 
 func (c CustomError) ErrorMessage() string {
@@ -55,10 +59,6 @@ func (e *CustomError) GetHTTPStatus() int {
 	default:
 		return 500
 	}
-}
-
-func (e *CustomError) Unwrap() error {
-	return e.Err
 }
 
 func newCustomError(code ErrorCode, category ErrorCategory, message string, err error) *CustomError {

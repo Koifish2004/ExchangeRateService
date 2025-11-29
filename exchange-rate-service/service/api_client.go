@@ -9,19 +9,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	appErrors "github.com/yourusername/exchange-rate-service/errors"
 )
 
 type LatestAPIResponse struct {
-	Success bool               `json:"success"`
-	ErrorD  map[string]string  `json:"error"`
-	Quotes  map[string]float64 `json:"quotes"`
+	Success bool                       `json:"success"`
+	Error   map[string]string          `json:"error"`
+	Quotes  map[string]decimal.Decimal `json:"quotes"`
 }
 
 type HistoricalAPIResponse struct {
-	Success bool               `json:"success"`
-	ErrorD  map[string]string  `json:"error"`
-	Quotes  map[string]float64 `json:"quotes"`
+	Success bool                       `json:"success"`
+	Error   map[string]string          `json:"error"`
+	Quotes  map[string]decimal.Decimal `json:"quotes"`
 }
 
 type APIClient struct {
@@ -41,7 +42,7 @@ func NewClient() *APIClient {
 	}
 }
 
-func (c *APIClient) FetchLatestRates() (map[string]float64, error) {
+func (c *APIClient) FetchLatestRates() (map[string]decimal.Decimal, error) {
 
 	u, _ := url.Parse(c.baseURL + "/live")
 	q := u.Query()
@@ -62,6 +63,7 @@ func (c *APIClient) FetchLatestRates() (map[string]float64, error) {
 	if err != nil {
 		return nil, appErrors.APIResponseError(err)
 	}
+
 	var result LatestAPIResponse
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, appErrors.APIResponseError(err)
@@ -69,25 +71,26 @@ func (c *APIClient) FetchLatestRates() (map[string]float64, error) {
 
 	if !result.Success {
 		errorMsg := "unknown error"
-		if info, ok := result.ErrorD["info"]; ok {
+		if info, ok := result.Error["info"]; ok {
 			errorMsg = info
 		}
 		return nil, appErrors.NewAPIError(errorMsg, nil)
 	}
-	//can we only add the 5 currencies we are supporting?
 
-	normalized := make(map[string]float64)
-	normalized["USD"] = 1.0
+	normalized := make(map[string]decimal.Decimal)
+	normalized["USD"] = decimal.NewFromInt(1)
+
 	for pair, rate := range result.Quotes {
 		if strings.HasPrefix(pair, "USD") {
-			normalized[pair[3:]] = rate
+			currency := pair[3:]
+			normalized[currency] = rate
 		}
 	}
 
 	return normalized, nil
 }
 
-func (c *APIClient) FetchHistoricalRates(date time.Time) (map[string]float64, error) {
+func (c *APIClient) FetchHistoricalRates(date time.Time) (map[string]decimal.Decimal, error) {
 	u, _ := url.Parse(c.baseURL + "/historical")
 	q := u.Query()
 	q.Set("access_key", c.apiKey)
@@ -118,17 +121,19 @@ func (c *APIClient) FetchHistoricalRates(date time.Time) (map[string]float64, er
 
 	if !result.Success {
 		errorMsg := "unknown error"
-		if info, ok := result.ErrorD["info"]; ok {
+		if info, ok := result.Error["info"]; ok {
 			errorMsg = info
 		}
 		return nil, appErrors.NewAPIError(errorMsg, nil)
 	}
 
-	normalized := make(map[string]float64)
-	normalized["USD"] = 1.0
+	normalized := make(map[string]decimal.Decimal)
+	normalized["USD"] = decimal.NewFromInt(1)
 	for pair, rate := range result.Quotes {
 		if strings.HasPrefix(pair, "USD") {
-			normalized[pair[3:]] = rate
+			currency := pair[3:]
+
+			normalized[currency] = rate
 		}
 	}
 
