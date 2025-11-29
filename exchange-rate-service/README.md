@@ -1,204 +1,97 @@
 # Exchange Rate Service
 
-A high-performance currency exchange rate service built in Go that provides real-time and historical currency conversion with in-memory caching.
+A currency exchange rate service built in Go that provides real-time and historical currency conversion with in-memory caching.
 
 ## Features
 
-- Real-time currency conversion for USD, INR, EUR, JPY, GBP
+- Real-time currency conversion for USD, INR, EUR, JPY, GBP, BTC
 - Historical exchange rates (up to 90 days)
-- In-memory caching for optimal performance
+- In-memory caching for performance
 - Hourly automatic rate refresh
 - Thread-safe concurrent request handling
-- Comprehensive input validation
-- RESTful API design
-- Docker support
-
-## Architecture
-
-```
-┌─────────────┐
-│   Client    │
-└──────┬──────┘
-       │
-       ▼
-┌─────────────────┐
-│  HTTP Handler   │  (Gin Framework)
-└────────┬────────┘
-         │
-         ▼
-┌──────────────────┐
-│ Rate Fetcher     │  (Business Logic)
-│   Service        │
-└────┬───────┬─────┘
-     │       │
-     ▼       ▼
-┌────────┐ ┌──────────┐
-│ Cache  │ │   API    │
-│ (RAM)  │ │  Client  │
-└────────┘ └─────┬────┘
-                 │
-                 ▼
-         ┌───────────────┐
-         │ External API  │
-         │(exchangerate- │
-         │    api.com)   │
-         └───────────────┘
-```
-
-### Components
-
-1. **API Client** (`service/api_client.go`) - Handles external API calls
-2. **Cache** (`service/cache.go`) - Thread-safe in-memory storage
-3. **Converter** (`service/converter.go`) - Pure currency conversion logic
-4. **Rate Fetcher** (`service/rate_fetcher.go`) - Main orchestrator with validation
-5. **Handler** (`handler/convert_handler.go`) - HTTP request/response handling
+- RESTful API with comprehensive validation
 
 ## Prerequisites
 
 - Go 1.21 or higher
-- Docker (optional, for containerized deployment)
-- API Key from [https://exchangerate.host](https://exchangerate.host/)
+- API Key from [exchangerate.host](https://exchangerate.host/)
+- Docker (optional)
 
 ## Quick Start
 
-### Option 1: Run with Docker (Recommended)
+### Local Setup
 
 ```bash
-# 1. Clone the repository
+# Clone repository
 git clone <your-repo-url>
 cd exchange-rate-service
 
-# 2. Set your API key
-export API_KEY=your_api_key_here
-
-# 3. Run with Docker Compose
-docker-compose up
-
-# Service will be available at http://localhost:8080
-```
-
-### Option 2: Run Locally
-
-```bash
-# 1. Clone the repository
-git clone <your-repo-url>
-cd exchange-rate-service
-
-# 2. Install dependencies
+# Install dependencies
 go mod download
 
-# 3. Create .env file
-echo "API_KEY=your_api_key_here" > .env
-echo "PORT=8080" >> .env
+# Set environment variables
+export API_KEY=your_api_key_here
+export PORT=8080
 
-# 4. Run the service
+# Run service
 go run main.go
-
-# Service will be available at http://localhost:8080
 ```
 
-## API Documentation
-
-### Convert Currency
-
-Convert an amount from one currency to another.
-
-**Endpoint:** `GET /convert`
-
-**Query Parameters:**
-
-- `from` (required) - Source currency code (USD, INR, EUR, JPY, GBP)
-- `to` (required) - Target currency code (USD, INR, EUR, JPY, GBP)
-- `amount` (required) - Amount to convert (positive number)
-- `date` (optional) - Historical date in YYYY-MM-DD format (max 90 days ago)
-
-**Examples:**
-
-```bash
-# Current exchange rate
-curl "http://localhost:8080/convert?from=USD&to=INR&amount=100"
-
-# Response:
-{
-  "from": "USD",
-  "to": "INR",
-  "amount": 100,
-  "result": 8312.50
-}
-
-# Historical exchange rate (30 days ago)
-curl "http://localhost:8080/convert?from=EUR&to=GBP&amount=50&date=2025-10-28"
-
-# Response:
-{
-  "from": "EUR",
-  "to": "GBP",
-  "amount": 50,
-  "date": "2025-10-28",
-  "result": 43.95
-}
-
-# Same currency conversion
-curl "http://localhost:8080/convert?from=USD&to=USD&amount=100"
-
-# Response:
-{
-  "from": "USD",
-  "to": "USD",
-  "amount": 100,
-  "result": 100
-}
-```
-
-**Error Responses:**
-
-```bash
-# Unsupported currency
-curl "http://localhost:8080/convert?from=BTC&to=USD&amount=1"
-# {"error":"unsupported currency: BTC"}
-
-# Invalid amount
-curl "http://localhost:8080/convert?from=USD&to=INR&amount=-100"
-# {"error":"amount must be positive"}
-
-# Date too old (>90 days)
-curl "http://localhost:8080/convert?from=USD&to=INR&amount=100&date=2024-01-01"
-# {"error":"date is too old, maximum lookback is 90 days"}
-
-# Future date
-curl "http://localhost:8080/convert?from=USD&to=INR&amount=100&date=2026-01-01"
-# {"error":"date cannot be in the future"}
-
-# Missing parameters
-curl "http://localhost:8080/convert?from=USD&to=INR"
-# {"error":"missing required parameter: amount"}
-```
-
-## Testing
-
-### Run All Tests
+### Docker Setup
 
 ```bash
 # Set API key
 export API_KEY=your_api_key_here
 
-# Run tests
-go test -v
-
-# Run with coverage
-go test -cover
+# Run with Docker Compose
+docker-compose up
 ```
 
-### Test Output
+Service runs at `http://localhost:8080`
 
+## API Documentation
+
+### Convert Currency
+
+**Endpoint:** `GET /convert`
+
+**Query Parameters:**
+
+| Parameter | Required | Description                                    |
+| --------- | -------- | ---------------------------------------------- |
+| `from`    | Yes      | Source currency (USD, INR, EUR, JPY, GBP, BTC) |
+| `to`      | Yes      | Target currency (USD, INR, EUR, JPY, GBP, BTC) |
+| `amount`  | Yes      | Amount to convert (positive number)            |
+| `date`    | No       | Historical date (YYYY-MM-DD, max 90 days ago)  |
+
+**Success Response:**
+
+```json
+{
+  "amount": "100"
+}
 ```
-✓ Basic conversion
-✓ All 20 currency pairs
-✓ Historical conversion
-✓ Unsupported currencies rejected
-✓ Invalid amounts rejected
-✓ Date validation
-✓ Caching performance
+
+**Example Requests:**
+
+```bash
+# Current rate
+curl "http://localhost:8080/convert?from=USD&to=INR&amount=100"
+
+# Historical rate
+curl "http://localhost:8080/convert?from=EUR&to=GBP&amount=50&date=2025-10-28"
+
+# Same currency
+curl "http://localhost:8080/convert?from=USD&to=USD&amount=100"
+```
+
+**Error Response:**
+
+```json
+{
+  "error": "UNSUPPORTED_CURRENCY",
+  "errorMessage": "unsupported currency: XYZ"
+}
 ```
 
 ## Configuration
@@ -206,49 +99,63 @@ go test -cover
 Environment variables:
 
 ```bash
-API_KEY=your_api_key_here    # Required: exchangerate-api.com API key
-PORT=8080                     # Optional: Server port (default: 8080)
+API_KEY=your_api_key_here    # Required
+PORT=8080                     # Optional (default: 8080)
 ```
+
+## Architecture
+
+The service consists of five main components:
+
+1. **API Client** - Fetches rates from exchangerate.host
+2. **Cache** - Thread-safe in-memory storage with mutex locks
+3. **Converter** - Currency conversion calculations using decimal precision
+4. **Rate Fetcher** - Orchestrates validation, caching, and conversion
+5. **Handler** - HTTP request/response processing with Gin framework
 
 ## Supported Currencies
 
-- **USD** - United States Dollar
-- **INR** - Indian Rupee
-- **EUR** - Euro
-- **JPY** - Japanese Yen
-- **GBP** - British Pound Sterling
-
-## Assumptions
-
-1. **Base Currency:** All exchange rates are relative to USD from the API
-2. **Rate Refresh:** Latest rates are refreshed every hour automatically
-3. **Historical Data:** Limited to last 90 days as per requirements
-4. **Caching Strategy:**
-   - Latest rates cached until next hourly refresh
-   - Historical rates cached permanently (within 90-day window)
-5. **Date Format:** Historical dates must be in YYYY-MM-DD format
-6. **Timezone:** All dates are processed in UTC
-7. **API Rate Limits:** Free tier API limits are respected
-8. **Error Handling:** External API failures return graceful error messages
-9. **Concurrency:** Service handles multiple concurrent requests safely using mutex locks
-10. **Decimal Precision:** Results are returned as floating-point numbers
+- USD - United States Dollar
+- INR - Indian Rupee
+- EUR - Euro
+- JPY - Japanese Yen
+- GBP - British Pound Sterling
+- BTC - Bitcoin
 
 ## Project Structure
 
 ```
 exchange-rate-service/
 ├── main.go                    # Application entry point
+├── handler/
+│   └── convert_handler.go    # HTTP request handlers
 ├── service/
 │   ├── api_client.go         # External API integration
 │   ├── cache.go              # In-memory caching
 │   ├── converter.go          # Conversion logic
-│   └── rate_fetcher.go       # Main service orchestrator
-├── handler/
-│   └── convert_handler.go    # HTTP handlers
-├── service_test.go           # Integration tests
-├── Dockerfile                # Docker configuration
-├── docker-compose.yml        # Docker Compose configuration
-├── .env                      # Environment variables
-├── go.mod                    # Go module definition
-└── README.md                 # This file
+│   └── rate_fetcher.go       # Service orchestrator
+├── errors/
+│   └── errors.go             # Custom error types
+├── Dockerfile                # Container configuration
+├── docker-compose.yml        # Docker Compose setup
+└── go.mod                    # Go module dependencies
 ```
+
+## Testing
+
+```bash
+# Set API key
+export API_KEY=your_api_key_here
+
+# Run tests
+go test ./... -v
+
+# Run with coverage
+go test ./... -cover
+```
+
+## Dependencies
+
+- **gin-gonic/gin** - HTTP web framework
+- **joho/godotenv** - Environment variable management
+- **shopspring/decimal** - Precise decimal arithmetic

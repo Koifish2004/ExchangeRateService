@@ -31,6 +31,9 @@ func (c *Converter) Convert(from, to string, amount decimal.Decimal, rates map[s
 	if toRate == decimal.NewFromInt(0) {
 		return "", appErrors.InvalidRateError(to)
 	}
+	if from == to {
+		return amount.String(), nil
+	}
 
 	result := amount.Mul(toRate).Div(fromRate)
 

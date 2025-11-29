@@ -76,8 +76,8 @@ func (c *Cache) GetHistoricalRates(date time.Time) (map[string]decimal.Decimal, 
 
 func (c *Cache) SetHistoricalRates(date time.Time, rates map[string]decimal.Decimal) {
 	dateKey := date.Format("2006-01-02")
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	c.historicalRates[dateKey] = rates
 

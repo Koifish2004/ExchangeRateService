@@ -93,11 +93,16 @@ func (s *RateFetcherService) validate(from, to string, amountStr string, date *t
 	}
 
 	if date != nil {
-		if date.After(time.Now()) {
+
+		now := time.Now().UTC()
+		dateUTC := date.UTC()
+
+		if dateUTC.Truncate(24 * time.Hour).After(now.Truncate(24 * time.Hour)) {
 			return appErrors.FutureDateError()
 		}
 
-		if date.Before(time.Now().AddDate(0, 0, -90)) {
+		cutoffDate := now.AddDate(0, 0, -90).Truncate(24 * time.Hour)
+		if dateUTC.Truncate(24 * time.Hour).Before(cutoffDate) {
 			return appErrors.DateTooOldError()
 		}
 	}

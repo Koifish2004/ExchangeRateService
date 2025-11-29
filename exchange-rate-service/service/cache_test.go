@@ -3,9 +3,11 @@ package service
 import (
 	"testing"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
-func Test_LatestRates(t *testing.T) {
+func TestLatestRates(t *testing.T) {
 	cache := NewCache()
 
 	rates, found := cache.GetLatestRates()
@@ -17,10 +19,10 @@ func Test_LatestRates(t *testing.T) {
 		t.Error("Expected nil when cache is empty")
 	}
 
-	testRates := map[string]float64{
-		"USD": 1.0,
-		"INR": 83.12,
-		"EUR": 0.92,
+	testRates := map[string]decimal.Decimal{
+		"USD": decimal.NewFromInt(1),
+		"INR": decimal.NewFromFloat(83.12),
+		"EUR": decimal.NewFromFloat(0.92),
 	}
 
 	cache.SetLatestRates(testRates)
@@ -30,14 +32,13 @@ func Test_LatestRates(t *testing.T) {
 		t.Error("Expected to find rates in cache")
 	}
 
-	if rates["INR"] != 83.12 {
-		t.Errorf("Expected INR rate 83.12, got %f", rates["INR"])
+	expectedINR := decimal.NewFromFloat(83.12)
+	if !rates["INR"].Equal(expectedINR) {
+		t.Errorf("Expected INR rate %s, got %s", expectedINR, rates["INR"])
 	}
-
 }
 
-func Test_HistoricalRates(t *testing.T) {
-
+func TestHistoricalRates(t *testing.T) {
 	cache := NewCache()
 	date := time.Date(2025, 11, 1, 0, 0, 0, 0, time.UTC)
 
@@ -45,9 +46,10 @@ func Test_HistoricalRates(t *testing.T) {
 	if found {
 		t.Error("Expected cache to be empty initially")
 	}
-	testRates := map[string]float64{
-		"USD": 1.0,
-		"INR": 82.50,
+
+	testRates := map[string]decimal.Decimal{
+		"USD": decimal.NewFromInt(1),
+		"INR": decimal.NewFromFloat(82.50),
 	}
 
 	cache.SetHistoricalRates(date, testRates)
@@ -58,8 +60,9 @@ func Test_HistoricalRates(t *testing.T) {
 		t.Error("Expected to find historical value")
 	}
 
-	if rates["INR"] != 82.50 {
-		t.Errorf("Expected INR rate 82.50, got %f", rates["INR"])
+	expectedINR := decimal.NewFromFloat(82.50)
+	if !rates["INR"].Equal(expectedINR) {
+		t.Errorf("Expected INR rate %s, got %s", expectedINR, rates["INR"])
 	}
 
 	differentDate := time.Date(2025, 11, 2, 0, 0, 0, 0, time.UTC)
@@ -69,7 +72,7 @@ func Test_HistoricalRates(t *testing.T) {
 	}
 }
 
-func Test_GetLastUpdated(t *testing.T) {
+func TestGetLastUpdated(t *testing.T) {
 	cache := NewCache()
 
 	lastUpdated := cache.GetLastUpdated()
@@ -78,8 +81,8 @@ func Test_GetLastUpdated(t *testing.T) {
 		t.Error("Initially, last update should be zero")
 	}
 
-	cache.SetLatestRates(map[string]float64{
-		"USD": 1.0,
+	cache.SetLatestRates(map[string]decimal.Decimal{
+		"USD": decimal.NewFromInt(1),
 	})
 
 	lastUpdated = cache.GetLastUpdated()
@@ -91,20 +94,22 @@ func Test_GetLastUpdated(t *testing.T) {
 	if time.Since(lastUpdated) > time.Second {
 		t.Error("lastUpdated should be very recent")
 	}
-
 }
 
-func Test_ClearHistoricalValues(t *testing.T) {
-
+func TestClearHistoricalValues(t *testing.T) {
 	cache := NewCache()
 	oldDate := time.Now().AddDate(0, 0, -100)
 
-	//should be cleared
-	cache.SetHistoricalRates(oldDate, map[string]float64{"USD": 1.0})
+	// Should be cleared
+	cache.SetHistoricalRates(oldDate, map[string]decimal.Decimal{
+		"USD": decimal.NewFromInt(1),
+	})
 
-	//should remain
+	// Should remain
 	recentDate := time.Now().AddDate(0, 0, -30)
-	cache.SetHistoricalRates(recentDate, map[string]float64{"USD": 1.0})
+	cache.SetHistoricalRates(recentDate, map[string]decimal.Decimal{
+		"USD": decimal.NewFromInt(1),
+	})
 
 	cache.ClearOldHistoricalData()
 
@@ -117,5 +122,4 @@ func Test_ClearHistoricalValues(t *testing.T) {
 	if !found {
 		t.Error("Recent data should not be cleared")
 	}
-
 }
